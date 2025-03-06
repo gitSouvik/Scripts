@@ -5,6 +5,7 @@ import os
 from socketserver import ThreadingMixIn
 import subprocess  # For opening the .cpp file
 import re
+import shutil
 
 PORT = 54321  # Replace with your custom port number
 
@@ -69,7 +70,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         # Create a .cpp file for the problem if it doesn't exist
         cpp_filename = os.path.join(cwd, f"{problem_name}.cpp")
-        template_path = os.path.join(cwd, "template.cpp")  # Path to your template file
+        template_path = '/Users/woofwoof/scripts/template.cpp'
 
         if not os.path.exists(cpp_filename):
             with open(cpp_filename, 'w') as f:
