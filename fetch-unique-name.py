@@ -8,7 +8,7 @@ import re
 
 PORT = 54321  # Replace with your custom port number
 
-# Generate a unique .cpp filename in the given directory.
+# Generate a unique .cpp filename in the given directory like A A1 A2 A3 ... etc.
 def get_unique_cpp_filename(base_name, cwd):
     """Generate a unique base name for a .cpp file in the specified directory."""
     counter = 1
@@ -32,18 +32,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
         if 'y' in output.lower():
-            # Change the output if 'no'
             # Replace spaces with hyphens but avoid adding them around punctuation
             problem_name = re.sub(r'\s+(?=\w)', '-', problem_name.strip())                          # For USACO problems only       
         else:
-            # Change the output if 'no'
             problem_name = problem_name[0]  # For contest problems only
-
 
  
         test_cases = data['tests']  # List of test cases
         problem_link = data['url']  # URL link for the problem
-
 
 
         # Use the current working directory
@@ -71,98 +67,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 f.write(output_data)
 
 
-
-        # Save only the first input/output as {problem}-1.in and {problem}-1.out             ***** PROBLEM : ONLY FIRST TEST CASE *****
-
-        # input_filename = os.path.join(cwd, f"{problem_name}-1.in")
-        # output_filename = os.path.join(cwd, f"{problem_name}-1.out")
-        # input_data = test_cases[0]['input']
-        # output_data = test_cases[0]['output']
-
-        # # Save the input data
-        # with open(input_filename, 'w') as f:
-        #     f.write(input_data)
-        
-        # # Save the output data
-        # with open(output_filename, 'w') as f:
-        #     f.write(output_data)
-        
-
-
-
         # Create a .cpp file for the problem if it doesn't exist
         cpp_filename = os.path.join(cwd, f"{problem_name}.cpp")
+        template_path = os.path.join(cwd, "template.cpp")  # Path to your template file
+
         if not os.path.exists(cpp_filename):
             with open(cpp_filename, 'w') as f:
-                # Replace with your name and the problem link
-                with open(cpp_filename, 'w') as f:
-                    f.write("/*\n")
-                    f.write(" * Author: Calypsoo\n")
-                    f.write(f" * Problem: {problem_name}\n")
-                    f.write(f" * P-link: {problem_link}\n")
-                    f.write(" */\n\n")
+                # Add author and problem link manually
+                f.write("/*\n")
+                f.write(" * Author: Calypsoo\n")
+                f.write(f" * Problem: {problem_name}\n")
+                f.write(f" * P-link: {problem_link}\n")
+                f.write(" */\n\n")
 
-                    f.write("#include <bits/stdc++.h>\n")
-                    f.write("using namespace std;\n\n")
-
-                    f.write("#define all(x) (x).begin(), (x).end()\n")
-                    f.write("#define umap unordered_map\n")
-                    f.write("#define mset multiset\n")
-                    f.write("#define pb push_back\n")
-                    f.write("#define eb emplace_back\n")
-                    f.write("#define len(s) (s).length()\n")
-                    f.write("#define nl cout << \"\\n\"\n")
-                    f.write("#define _ << \" \" <<\n")
-                    f.write("#define rep(i, a, b) for(int i = a; i < b; i++)\n")
-                    f.write("#define fun(ret, ...) std::function<ret(__VA_ARGS__)>\n")
-                    f.write("// #define int long long\n")
-
-                    f.write("using ll = long long;\n")
-                    f.write("using ld = long double;\n")
-                    f.write("constexpr int mod = 1000000007; // 998244353;\n\n")
-
-                    f.write("inline void apv(int ans = 1, int cap = 0) {\n")
-                    f.write("    cout << (ans == -1 ? \"-1\" : (cap ? (ans ? \"YES\" : \"NO\") : (ans ? \"Yes\" : \"No\"))) << \"\\n\";\n")
-                    f.write("}\n\n")
-
-                    f.write("void USACO(const string& file) {\n")
-                    f.write("    freopen((file + \".in\").c_str(), \"r\", stdin), freopen((file + \".out\").c_str(), \"w\", stdout);\n")
-                    f.write("}\n\n")
-
-                    f.write("#ifdef WOOF_\n")
-                    f.write("#include <bits/debug.h>\n")
-                    f.write("#else\n")
-                    f.write("#define dbg(...) 25\n")
-                    f.write("#endif\n\n")
-
-                    f.write("/*  In the name of GOD, here we go!\n")
-                    f.write("    * Think (SIMPLE)\n")
-                    f.write("    * Complicated ? (START AGAIN) from SCRATCH\n")
-                    f.write("    * Spend about the (SAME AMOUNT OF TIME) that you would be able to DURING A REAL CONTEST\n")
-                    f.write("*/\n\n")
-
-                    f.write("const int N = 2e5+4;\n\n")
-
-                    f.write("void solve() {\n")
-                    f.write("    int n; cin >> n;\n")
-                    f.write("    vector<int> a(n);\n")
-                    f.write("    for(int i = 0; i < n; ++i) {\n")
-                    f.write("        cin >> a[i];\n")
-                    f.write("    }\n")
-                    f.write("}\n\n")
-
-                    f.write("int32_t main() {\n")
-                    f.write("    ios_base::sync_with_stdio(false);\n")
-                    f.write("    cin.tie(0); cout.tie(0);\n")
-                    f.write("    // USACO(\"\");\n")
-                    f.write("    int tc = 1, _tc = 1;\n")
-                    f.write("    // cin >> tc;\n")
-                    f.write("    while(tc-- > 0) {\n")
-                    f.write("        // cerr << \"\\nCase #\" << _tc++ << \" :\\n\";\n")
-                    f.write("        solve();\n")
-                    f.write("    }\n")
-                    f.write("    return 0;\n")
-                    f.write("}\n")    
+                # Copy the template file content below the header
+                if os.path.exists(template_path):
+                    with open(template_path, 'r') as template_file:
+                        shutil.copyfileobj(template_file, f) # Copy the template file content 
                                                 
         # Open the .cpp file using Sublime Text (or change to your preferred editor)
         subprocess.run(['/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl', cpp_filename])        
@@ -173,11 +94,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 class ThreadedTCPServer(ThreadingMixIn, socketserver.TCPServer):
     """Handle requests in a separate thread."""
 
-# # Start the server
-# with ThreadedTCPServer(("", PORT), Handler) as httpd:
-#     print(f"Serving on port {PORT}")
-#     output = input("usaco ? (y/n) : ")
-#     httpd.serve_forever()  # Keep the server running
 
 # Start the server [LATEST]
 with ThreadedTCPServer(("", PORT), Handler) as httpd:
