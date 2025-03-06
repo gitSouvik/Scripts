@@ -41,3 +41,30 @@ Spaces in filenames are now replaced with "-" to ensure smooth compatibility wit
 ## Automated File Creation
 
 A new script, [create.sh](https://github.com/gitSouvik/Scripts/blob/main/create.sh), has been added to automate the creation of files with different extensions. This allows users to quickly generate any number of .cpp, .py, .txt, or other necessary files.
+
+## Runsamples & Debug
+
+**runsamples.sh & runsamples-debug.sh**
+Both the scripts serves the same function i.e. to show output in a specific format in the terminal. But there functionalities and purpose differs a bit.
+
+ > **Important** : Let us, denote ***runsamples.sh*** as **[run.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples.sh)** and ***runsamples-debug.sh*** as **[rrun.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples-debug.sh)**.
+
+**Key Differences:**
+
+1. **Test Case Handling:** <br> <br>
+•  **[run.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples.sh)** :  This script loops through all test cases (A-1.in, A-2.in, ...) and executes the compiled program for each input file while checking memory and time usage. <br> 
+•  **[rrun.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples-debug.sh)** : This script allows executing a specific test case (by passing the test number as an argument) or running all test cases if N=0.
+
+2. **Output Handling:** <br> <br>
+•  **[run.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples.sh)** : Stores the program’s output in A-1-output.out, A-2-output.out, etc., and compares it with expected outputs. <br>
+•  **[rrun.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples-debug.sh)** : Displays the output in the terminal but does not compare it with expected outputs.
+
+3. **Debugging and Error Handling:** <br> <br>
+•  **[run.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples.sh)** : This script explicitly checks for segmentation faults and highlights them. <br>
+•  **[rrun.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples-debug.sh)** : This stores error logs in a temporary file (temp_debug.log) and displays them separately.
+
+4. **Execution Modes:** <br> <br>
+• **[run.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples.sh)** is designed for automated testing and detailed logging. <br>
+•  **[rrun.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples-debug.sh)** is designed for quick execution with an option to run specific test cases.
+
+----------
