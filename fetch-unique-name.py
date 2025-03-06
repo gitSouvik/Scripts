@@ -7,11 +7,10 @@ import subprocess  # For opening the .cpp file
 import re
 import shutil
 
-PORT = 54321  # Replace with your custom port number
+PORT = 54321  # My port number
 
-# Generate a unique .cpp filename in the given directory like A A1 A2 A3 ... etc.
+# If A is present, A1 will be created. If A1 is present, A2 will be created and so on ... 
 def get_unique_cpp_filename(base_name, cwd):
-    """Generate a unique base name for a .cpp file in the specified directory."""
     counter = 1
     unique_base_name = base_name
     cpp_filename = os.path.join(cwd, f"{unique_base_name}.cpp")
@@ -20,7 +19,7 @@ def get_unique_cpp_filename(base_name, cwd):
         cpp_filename = os.path.join(cwd, f"{unique_base_name}.cpp")
         counter += 1
     return unique_base_name
-    
+
 # Define the handler to process the data sent by Competitive Companion
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
@@ -30,21 +29,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         
         # Extract the problem name and the number of tests
         problem_name = data['name']  # Name of the problem (for lowercase use - .lower())
-
-
-        if 'y' in output.lower():
-            # Replace spaces with hyphens but avoid adding them around punctuation
-            problem_name = re.sub(r'\s+(?=\w)', '-', problem_name.strip())                          # For USACO problems only       
-        else:
-            problem_name = problem_name[0]  # For contest problems only
-
- 
         test_cases = data['tests']  # List of test cases
         problem_link = data['url']  # URL link for the problem
 
+        if 'y' in output.lower():
+            # Replace spaces with hyphens but avoid adding them around punctuation
+            problem_name = problem_name.strip().replace(" ", "-")  # For USACO problems only       
+        else:
+            problem_name = problem_name[0]  # For contest problems only
 
-        # Use the current working directory
-        cwd = os.getcwd()
+        cwd = os.getcwd()  # Use the current working directory
 
         # Generate a unique .cpp filename (Like A1.cpp , A2.cpp , A3.cpp , ....)
         problem_name = get_unique_cpp_filename(problem_name, cwd)
@@ -59,14 +53,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             input_data = test_case['input']
             output_data = test_case['output']
 
-            # Save the input data
-            with open(input_filename, 'w') as f:
+            # Save the input and output data
+            with open(input_filename, 'w') as f:  
                 f.write(input_data)
-            
-            # Save the output data
             with open(output_filename, 'w') as f:
                 f.write(output_data)
-
 
         # Create a .cpp file for the problem if it doesn't exist
         cpp_filename = os.path.join(cwd, f"{problem_name}.cpp")
@@ -74,17 +65,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         if not os.path.exists(cpp_filename):
             with open(cpp_filename, 'w') as f:
-                # Add author and problem link manually
+                # Add author and problem link 
                 f.write("/*\n")
                 f.write(" * Author: Calypsoo\n")
                 f.write(f" * Problem: {problem_name}\n")
                 f.write(f" * P-link: {problem_link}\n")
                 f.write(" */\n\n")
-
-                # Copy the template file content below the header
+                
+                # Copy the cp template file content   
                 if os.path.exists(template_path):
                     with open(template_path, 'r') as template_file:
-                        shutil.copyfileobj(template_file, f) # Copy the template file content 
+                        shutil.copyfileobj(template_file, f)  
                                                 
         # Open the .cpp file using Sublime Text (or change to your preferred editor)
         subprocess.run(['/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl', cpp_filename])        
@@ -94,12 +85,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 # Use ThreadingMixIn to handle requests in separate threads
 class ThreadedTCPServer(ThreadingMixIn, socketserver.TCPServer):
     """Handle requests in a separate thread."""
+    allow_reuse_address = True  # Allow reusing the port immediately
 
-
-# Start the server [LATEST]
 with ThreadedTCPServer(("", PORT), Handler) as httpd:
     print(f"Serving on port {PORT}")
-    output = input("usaco ? (y/n) : ")
+    output = input("usaco ? (y/n) : ").strip().lower()
     try:
         httpd.serve_forever()  # Keep the server running
     except KeyboardInterrupt:
