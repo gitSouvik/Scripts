@@ -3,6 +3,7 @@ import socketserver
 import json
 import os
 from socketserver import ThreadingMixIn
+import shutil
 
 PORT = 54321  # Replace with your custom port number
 
@@ -49,87 +50,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         
         # Generate a new C++ file name
         cpp_filename = self.get_unique_cpp_filename(cp_folder, problem_name)
-        
-        # Create the C++ file with the template if it doesn't exist
-        with open(cpp_filename, 'w') as f:
-            f.write("/*\n")
-            f.write(" * Author: Calypsoo\n")
-            f.write(f" * Problem: {problem_name}\n")
-            f.write(f" * P-link: {problem_link}\n")
-            f.write(" */\n\n")
 
-            f.write("#include <bits/stdc++.h>\n")
-            f.write("using namespace std;\n\n")
-            f.write("#define all(x) (x).begin(), (x).end()\n")
-            f.write("#define rall(x) (x).rbegin(), (x).rend()\n")
-            f.write("#define umap unordered_map\n")
-            f.write("#define uset unordered_set\n")
-            f.write("#define pb push_back\n")
-            f.write("#define eb emplace_back\n")
-            f.write("#define lb lower_bound\n")
-            f.write("#define ub upper_bound\n")
-            f.write("#define contain(map, i) (map.find(i) != map.end())\n")
-            f.write("#define maxele max_element\n")
-            f.write("#define minele min_element\n")
-            f.write("#define len(s) (s).length()\n")
-            f.write("#define nl cout << \"\\n\"\n")
-            f.write("#define rep(i, a, b) for(int i = a; i < b; i++)\n")
-            f.write("// #define int long long\n\n")
-
-            f.write("using ll = long long;\n")
-            f.write("using ld = long double;\n")
-            f.write("constexpr ll mod = 1e9 + 7;\n\n")
-
-            f.write("inline void apv(int ans = 1, int cap = 1) {\n")
-            f.write("    if(ans == -1) {\n")
-            f.write("        cout << (-1) << endl;\n")
-            f.write("    } else {\n")
-            f.write("        cout << (cap ? (ans ? \"YES\" : \"NO\") : (ans ? \"Yes\" : \"No\"));\n")
-            f.write("        cout << endl;\n")
-            f.write("    }\n")
-            f.write("}\n\n")
-
-            f.write("#ifdef WOOF_\n")
-            f.write("#include <bits/debug.h>\n")
-            f.write("#else\n")
-            f.write("#define dbg(...) 25\n")
-            f.write("#endif\n\n")
-
-            f.write("/*\n")
-            f.write(" * In the name of GOD\n")
-            f.write(" * Here we go!\n")
-            f.write(" */\n\n")
-
-            f.write("void solve() {\n")
-            f.write("    int n; cin >> n;\n")
-            f.write("    vector<int> a(n);\n")
-            f.write("    for(int i = 0; i < n; i++) {\n")
-            f.write("        cin >> a[i];\n")
-            f.write("    }\n")
-            f.write("}\n\n")
-
-            f.write("int32_t main() {\n")
-            f.write("    ios_base::sync_with_stdio(false);\n")
-            f.write("    cin.tie(0); cout.tie(0);\n")
-            f.write("    // freopen(\"cmd+D.in\", \"r\", stdin);\n")
-            f.write("    // freopen(\"cmd+D.out\", \"w\", stdout);\n")
-            f.write("    int tc = 1, _ = 1;\n")
-            f.write("    // cin >> tc;\n")
-            f.write("    while(tc-- > 0) {\n")
-            f.write("        // cerr << \"\\nCase #\" << _++ << \" :\\n\";\n")
-            f.write("        solve();\n")
-            f.write("    }\n")
-            f.write("    return 0;\n")
-            f.write("}")
-
-            f.write("""
-/*  
- * 1. ALWAYS THINK SIMPLE 
- * 2. IF IT GETS COMPLICATED THINK AGAIN :) FROM SCRATCH !
- * 3. SPEND ABOUT THE SAME AMOUNT OF TIME THAT YOU WOULD BE ABLE 
- *    TO DURING A REAL CONTEST
- */\n
-""")
+        if not os.path.exists(cpp_filename):
+            with open(cpp_filename, 'w') as f:
+                # Add author and problem link 
+                f.write("/*\n")
+                f.write(" * Author: Calypsoo\n")
+                f.write(f" * Problem: {problem_name}\n")
+                f.write(f" * P-link: {problem_link}\n")
+                f.write(" */\n\n")
+                
+                # Copy the cp template file content   
+                if os.path.exists(template_path):
+                    with open(template_path, 'r') as template_file:
+                        shutil.copyfileobj(template_file, f) 
         
         self.send_response(200)  # Send a response back to the client
         self.end_headers()
