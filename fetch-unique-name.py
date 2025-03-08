@@ -33,10 +33,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         problem_link = data['url']  # URL link for the problem
 
         if 'y' in output.lower():
-            # Replace spaces with hyphens but avoid adding them around punctuation
-            problem_name = problem_name.strip().replace(" ", "-")  # For USACO problems only       
+            if "problem " in problem_name.lower():  # Replace spaces with hyphens
+                problem_name = problem_name.split(". ", 1)[-1].strip().replace(" ", "-")  # Remove "Problem X." as well
+            else:
+                problem_name = problem_name.strip().replace(" ", "-")  
         else:
-            problem_name = problem_name[0]  # For contest problems only
+            problem_name = problem_name[0]  # Normal contest problem: Take only the first letter
 
         cwd = os.getcwd()  # Use the current working directory
 
