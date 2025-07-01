@@ -34,7 +34,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         if 'y' in output.lower():
             if "problem " in problem_name.lower():  # Replace spaces with hyphens
-                problem_name = problem_name.split(". ", 1)[-1].strip().replace(" ", "-")  # Remove "Problem X." as well
+                problem_name = problem_name.split(". ", 1)[-1].strip().replace(" ", "_")  # Remove "Problem X." as well
             else:
                 problem_name = problem_name.strip().replace(" ", "-")  
         else:
@@ -69,9 +69,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             with open(cpp_filename, 'w') as f:
                 # Add author and problem link 
                 f.write("/*\n")
-                f.write(" * Author: Calypsoo\n")
+                f.write(" * Author: snowdust\n")
                 f.write(f" * Problem: {problem_name}\n")
-                f.write(f" * P-link: {problem_link}\n")
+                f.write(f" * Source: {problem_link}\n")
                 f.write(" */\n\n")
                 
                 # Copy the cp template file content   
