@@ -1,0 +1,5 @@
+CompileFlags:
+  Add: 
+    - "-I/Users/woofwoof/P4/Scripts/.ide_includes"
+    - "-std=c++20"
+    - "-DWOOF_"

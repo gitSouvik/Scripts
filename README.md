@@ -1,70 +1,190 @@
-# Competitive Programming Setup
+<div align="center">
 
-## Initial Setup 
+```
+  ██████╗██████╗ ██╗  ██╗
+ ██╔════╝██╔══██╗╚██╗██╔╝
+ ██║     ██████╔╝ ╚███╔╝ 
+ ██║     ██╔═══╝  ██╔██╗ 
+ ╚██████╗██║     ██╔╝ ██╗
+  ╚═════╝╚═╝     ╚═╝  ╚═╝
+```
 
-**Version 1.0**
-Originally, the system required running [fetch-server.sh](https://github.com/gitSouvik/Scripts/blob/main/fetch-server.py) manually before each session. Inputs and outputs had to be added one by one using **Competitive Companion**, making the process time-consuming and inefficient. This version stored input and output in the following files:
+**A fast, native Terminal UI for competitive programming.**
 
-* input.txt <br>
-* output.txt <br>
-* expected.txt <br>
-* error.txt
+*Built with Go · Powered by Bubble Tea · No dependencies to install*
 
->  **Drawback :** Cannot handle multiple file input and output at once (Since the previous file gets re-written and the input/output are lost). Need to fetch them every time individually for each problem.
+[![Go](https://img.shields.io/badge/go-1.21%2B-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/)
+[![C++](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=cplusplus&logoColor=white)](https://isocpp.org/)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%2F%20Linux-lightgrey?style=flat-square)]()
+[![Contributing](https://img.shields.io/badge/docs-CONTRIBUTING.md-blue?style=flat-square)](./CONTRIBUTING.md)
 
- **Version 2.0**
- 
-A revised version of fetch.py improved test case organization by storing them in separate **.in** and **.out** files and also creating and automatically opening of **.cpp** file with that problem name in the **Editor**. 
+</div>
 
-  To solve the issue of storing multiple test cases in a single file, a **new-fetch mechanism** was implemented. This version saved test cases separately using problem-specific .in and .out files:
-  
-* A.in &nbsp;/&nbsp; A.out <br>
-* B.in &nbsp;/&nbsp; B.out <br>
-* C.in &nbsp;/&nbsp; C.out 
+---
 
->  **Drawback :** If there were multiple test-cases for a single problem, it can only store **1** test case - 'the first one'. Also filenames generated from problem titles occasionally contain **extra spaces** which cannot be accessed in terminal (e.g., “cow tipping.cpp” may need to be manually corrected to “cow-tipping.cpp”).
+## What is this?
 
-**Version 3.0** (Latest)  
+`cpx` is a single binary that replaces a pile of bash scripts and python fetchers with a clean, keyboard-driven terminal UI. It handles the full competitive programming workflow end-to-end:
 
-The latest iteration of the fetch system [fetch-unique-name.sh](https://github.com/gitSouvik/Scripts/blob/main/fetch-unique-name.py) resolves previous limitations. Previously, the script only retrieved the first test case from a problem statement. This issue has now been corrected. The modified script can now handle multiple test cases and save them as individual .in and .out files, such as :
+- **Fetch** problems from Competitive Companion (auto-starts on launch)
+- **Run** your solution against all sample test cases with pass/fail output
+- **Debug** with custom hand-typed or pasted test input
+- **Create** single files or ranges (`a.cpp` → `e.cpp`) in one keystroke
 
-* A-1.in &nbsp;/&nbsp; A-1.out <br>
-* A-2.in &nbsp;/&nbsp; A-2.out <br>
-* and **so on**
+---
 
-Spaces in filenames are now replaced with "-" to ensure smooth compatibility with **USACO** and other platforms.
+## Quickstart
 
-* "***Problem 2. Cow Tipping.cpp***" will be renamed to "***Problem-2.-Cow-Tipping.cpp***"
+### Prerequisites
 
-> **Bonus** : As the name suggests, it was introduced to **prevent filename conflict**s. If a file named A.cpp already exists, the system automatically creates A1.cpp, then A2.cpp, and so forth, ensuring that existing files are not overwritten. <br>
+| Tool | Notes |
+|---|---|
+| **Go 1.21+** | `brew install go` |
+| **g++-15** | `brew install gcc` or use your distro's package |
+| **Competitive Companion** | [Chrome](https://chrome.google.com/webstore/detail/competitive-companion/cjnmckjndlpiamhfimnnjmnckgghkjbl) / [Firefox](https://addons.mozilla.org/en-US/firefox/addon/competitive-companion/) |
 
-## Automated File Creation
+### Build
 
-A new script, [create.sh](https://github.com/gitSouvik/Scripts/blob/main/create.sh), has been added to automate the creation of files with different extensions. This allows users to quickly generate any number of .cpp, .py, .txt, or other necessary files.
+```bash
+git clone https://github.com/<you>/cpx.git
+cd cpx
+cd cpx-src && go build -o ../cpx . && cd ..
+```
 
-## Runsamples & Debug
+### Run
 
-**runsamples.sh & runsamples-debug.sh**
-Both the scripts serves the same function i.e. to show output in a specific format in the terminal. But there functionalities and purpose differs a bit.
+Navigate to your contest directory and launch:
 
- > **Important** : Let us, denote ***runsamples.sh*** as **[run.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples.sh)** and ***runsamples-debug.sh*** as **[rrun.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples-debug.sh)**.
+```bash
+cd ~/contest
+cpx
+```
 
-**Key Differences:**
+> **Tip**: Add it to your PATH for global access:
+> ```bash
+> echo 'export PATH="$PATH:/path/to/cpx-dir"' >> ~/.zshrc && source ~/.zshrc
+> ```
 
-1. **Test Case Handling:** <br> <br>
-•  **[run.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples.sh)** :  This script loops through all test cases (A-1.in, A-2.in, ...) and executes the compiled program for each input file while checking memory and time usage. <br> 
-•  **[rrun.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples-debug.sh)** : This script allows executing a specific test case (by passing the test number as an argument) or running all test cases if N=0.
+---
 
-2. **Output Handling:** <br> <br>
-•  **[run.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples.sh)** : Stores the program’s output in A-1-output.out, A-2-output.out, etc., and compares it with expected outputs. <br>
-•  **[rrun.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples-debug.sh)** : Displays the output in the terminal but does not compare it with expected outputs.
+## UI Layout
 
-3. **Debugging and Error Handling:** <br> <br>
-•  **[run.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples.sh)** : This script explicitly checks for segmentation faults and highlights them. <br>
-•  **[rrun.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples-debug.sh)** : This stores error logs in a temporary file (temp_debug.log) and displays them separately.
+```
+  cpx — Competitive Programming Tools
+  /path/to/contest
 
-4. **Execution Modes:** <br> <br>
-• **[run.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples.sh)** is designed for automated testing and detailed logging. <br>
-•  **[rrun.sh](https://github.com/gitSouvik/Scripts/blob/main/runsamples-debug.sh)** is designed for quick execution with an option to run specific test cases.
+│ [A]  B   C   D                          ← Problem row (focused)
+  Type :  [r] run  [e] custom  [d] debug  [c] clear  [n] new  [g] gen  [q] quit
 
-----------
+  ─────────────────────────────────────────────────────────────────────
+
+  [run] compiling A.cpp...
+  ✔ compiled successfully (1200ms)
+  ─────────────────────────────────────
+  ✔ Test 1 Passed (4ms)
+  ─────────────────────────────────────
+  ✘ Test 2 Failed (3ms)
+  │ Output:
+  │ 5
+  │ Expected:
+  │ 4
+```
+
+The `│` bar on the left shows which row is focused. Use `↑`/`↓` to switch rows.
+
+---
+
+## Keyboard Shortcuts
+
+### Navigation (always available)
+| Key | Action |
+|---|---|
+| `↑` / `↓` | Switch focus between Problem row and Shortcut row |
+| `←` / `→` | Move between problems (when Problem row is focused) |
+
+### Commands (Shortcut row focused or anywhere on main screen)
+| Key | Action |
+|---|---|
+| `r` | Run selected problem against all `.in`/`.out` test cases |
+| `e` | Open custom test editor (paste/type, then `ctrl+r` to run) |
+| `d` | Debug run — opens dialog to pick a specific test case number |
+| `c` | Clear output log |
+| `n` | New file dialog — create a single file or a range (`a`→`e`) |
+| `q` | Quit |
+
+---
+
+## Workflow
+
+### 1. Fetch a Problem
+Start `cpx`. The fetch server is already running on port `54321`. Click the **+** icon in your Competitive Companion browser extension and the problem files are created silently and appear in the problem row instantly.
+
+Files created:
+- `A.cpp` — pre-filled from `template.cpp`
+- `A-1.in`, `A-1.out`, `A-2.in`, `A-2.out`, … — all sample test cases
+
+### 2. Write Your Solution
+Open `A.cpp` in your editor and write your solution.
+
+### 3. Test It
+Press `r` in cpx. Your solution is compiled and run against every sample test. Passing tests show green `✔`, failing tests show red `✘` with the output and expected output side by side.
+
+### 4. Custom Tests
+Press `e` to open the custom test editor. Paste or type your own input. Press `ctrl+r` to run it. Press `esc` to cancel.
+
+### 5. Debug Run
+Press `d`, then enter a test case number (`1`, `2`, etc.) or `0` to run all test cases without comparison. Useful for inspecting debug output from `dbg()`.
+
+---
+
+## Project Structure
+
+```
+cpx/
+├── cpx                     ← Compiled binary (run this)
+├── cpx-src/                ← Go source code
+│   ├── main.go             ← Entry point
+│   ├── model.go            ← State, key handling, Bubble Tea model
+│   ├── view.go             ← Terminal UI rendering
+│   ├── exec.go             ← Compile, run, test logic
+│   ├── fetch.go            ← Competitive Companion HTTP server
+│   ├── go.mod
+│   └── go.sum
+│
+├── template.cpp            ← C++20 solution template (loaded for each problem)
+├── debug.h                 ← Basic dbg() macro header
+├── debug++.h               ← Extended dbg() for tuples, queues, 2D arrays, etc.
+│
+├── .clangd                 ← clangd config for IDE autocomplete
+├── .ide_includes/bits/     ← Dummy stdc++.h for clangd on macOS
+│
+└── docs/
+    ├── SETUP.md            ← Full setup guide (compiler, clangd, PATH)
+    └── WORKFLOW.md         ← End-to-end contest workflow
+```
+
+---
+
+## Debug Macros
+
+The `debug.h` / `debug++.h` headers provide a `dbg(...)` macro that pretty-prints any variable to `stderr`. It is **active only when compiled with `-DWOOF_`** (set by cpx automatically), so it is silently disabled on the judge.
+
+```cpp
+vector<int> v = {1, 2, 3};
+dbg(v); // → [v] = [1, 2, 3]
+
+pair<int,int> p = {4, 5};
+dbg(p); // → [p] = (4, 5)
+```
+
+To install on macOS (so the header is picked up system-wide for your compiler):
+
+```bash
+sudo cp debug++.h /usr/local/include/bits/debug.h
+```
+
+---
+
+## License
+
+Personal toolchain — fork and adapt freely.
