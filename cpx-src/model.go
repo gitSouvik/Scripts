@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -22,6 +23,10 @@ const (
 	screenDialog
 	screenCustomTest
 	screenHelp
+	screenSnippets
+	screenTestEdit
+	screenSnippetCreate
+	screenMore
 )
 
 type dialogKind int
@@ -32,6 +37,8 @@ const (
 	dialogNewSingle
 	dialogNewRange
 	dialogRrun
+	dialogTimer
+	dialogApiKey
 )
 
 // ── Messages ──────────────────────────────────────────────────────────────────
@@ -49,6 +56,7 @@ type outLineMsg struct {
 type opDoneMsg   struct{}
 type fetchEvtMsg string
 type refreshMsg  struct{}
+type timerTickMsg struct{}
 
 // ── File entry ────────────────────────────────────────────────────────────────
 
@@ -127,6 +135,29 @@ type model struct {
 	fetchRunning bool
 	fetchMode    string
 	fetchCh      chan fetchEvtMsg
+
+	timerRunning bool
+	timerEnd     time.Time
+	timerDur     time.Duration
+
+	snippetSel int
+
+	testEditFiles []string
+	testEditIdx   int
+	testEditInput textarea.Model
+
+	// AI Tip
+	aiTip        string
+	aiTipLoading bool
+	ticks        int
+
+	// New inputs for API key and custom snippet
+	apiKeyInput       textinput.Model
+	snipNameInput     textinput.Model
+	snipCodeInput     textarea.Model
+	snipCreateFocused int // 0: name, 1: code
+
+	hideFacts bool
 }
 
 func newModel() model {
@@ -149,20 +180,78 @@ func newModel() model {
 	ta.BlurredStyle.LineNumber = dimStyle
 	ta.BlurredStyle.CursorLineNumber = dimStyle
 
+	loadApiKey(cwd)
+	loadAllSnippets(cwd)
+
+	// API key input
+	apiInput := textinput.New()
+	apiInput.Placeholder = "Paste your free Gemini API key here..."
+	apiInput.Width = 50
+
+	// Snippet name input
+	snipName := textinput.New()
+	snipName.Placeholder = "Snippet Name (e.g. Dijkstra)"
+	snipName.Width = 30
+	snipName.Focus()
+
+	// Snippet code input
+	snipCode := textarea.New()
+	snipCode.Placeholder = "Paste snippet code here..."
+	snipCode.ShowLineNumbers = true
+	snipCode.CharLimit = 0
+	snipCode.FocusedStyle.LineNumber = dimStyle
+	snipCode.FocusedStyle.CursorLineNumber = activeDimStyle
+	snipCode.BlurredStyle.LineNumber = dimStyle
+	snipCode.BlurredStyle.CursorLineNumber = dimStyle
+
+	initialTip := "Fetching tip..."
+	initialTipLoading := true
+	if currentApiKey == "" {
+		initialTip = "for funny facts click ctrl + p to add free gemini key"
+		initialTipLoading = false
+	}
+
 	m := model{
-		cwd:         cwd,
-		fetchCh:     make(chan fetchEvtMsg, 64),
-		customInput: ta,
+		cwd:               cwd,
+		fetchCh:           make(chan fetchEvtMsg, 64),
+		customInput:       ta,
+		aiTip:             initialTip,
+		aiTipLoading:      initialTipLoading,
+		apiKeyInput:       apiInput,
+		snipNameInput:     snipName,
+		snipCodeInput:     snipCode,
+		snipCreateFocused: 0,
 	}
 	m.problems = scanProblems(cwd)
+	
+	te := textarea.New()
+	te.ShowLineNumbers = true
+	te.CharLimit = 0
+	te.FocusedStyle.LineNumber = dimStyle
+	te.FocusedStyle.CursorLineNumber = activeDimStyle
+	te.BlurredStyle.LineNumber = dimStyle
+	te.BlurredStyle.CursorLineNumber = dimStyle
+	m.testEditInput = te
+	
 	return m
 }
 
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+		return timerTickMsg{}
+	})
+}
+
 func (m model) Init() tea.Cmd {
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		launchFetch(m.fetchCh, m.cwd),
 		listenFetch(m.fetchCh),
-	)
+		tickCmd(),
+	}
+	if currentApiKey != "" {
+		cmds = append(cmds, launchAITip())
+	}
+	return tea.Batch(cmds...)
 }
 
 // ── Update ────────────────────────────────────────────────────────────────────
@@ -173,6 +262,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.customInput.SetWidth(m.width - 4)
+		m.customInput.SetHeight((m.height - 10) / 2)
+		m.testEditInput.SetWidth(m.width - 4)
+		m.testEditInput.SetHeight(m.height - 10)
+		m.apiKeyInput.Width = m.width - 10
+		m.snipNameInput.Width = m.width - 10
+		m.snipCodeInput.SetWidth(m.width - 4)
+		m.snipCodeInput.SetHeight(m.height - 12)
+
+	case timerTickMsg:
+		m.ticks++
+		
+		var cmds []tea.Cmd
+		cmds = append(cmds, tickCmd()) // unconditional tick
+		
+		if m.ticks % 300 == 0 && !m.running {
+			m.aiTipLoading = true
+			cmds = append(cmds, launchAITip())
+		}
+		
+		return m, tea.Batch(cmds...)
 
 	case outLineMsg:
 		m.outLines = append(m.outLines, msg.line)
@@ -196,14 +306,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Don't show log output, just silently update problem list
 		m.problems = scanProblems(m.cwd)
 		// Auto select the newly added problem by jumping to the end
-		m.problemSel = len(m.problems) - 1
+		if len(m.problems) > 0 {
+			m.problemSel = len(m.problems) - 1
+		}
 		return m, listenFetch(m.fetchCh)
+		
+	case aiTipMsg:
+		m.aiTip = msg.tip
+		m.aiTipLoading = false
+
+	case aiAckMsg:
+		m.outLines = append(m.outLines, outLine{kind: "ok", text: msg.text})
+		// Auto-scroll logs
+		availLines := m.height - 7
+		if availLines < 5 {
+			availLines = 5
+		}
+		if len(m.outLines) > availLines {
+			m.logOffset = len(m.outLines) - availLines
+		}
 
 	case refreshMsg:
 		m.problems = scanProblems(m.cwd)
 
 	case tea.MouseMsg:
-		if m.screen == screenMain {
+		switch m.screen {
+		case screenMain:
 			switch msg.Type {
 			case tea.MouseWheelUp:
 				if m.logOffset > 0 {
@@ -211,12 +339,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case tea.MouseWheelDown:
 				m.logOffset++
+			case tea.MouseLeft:
+				if msg.Y == 4 {
+					if msg.X >= 10 {
+						maxProbs := (m.width - 10) / 4
+						if maxProbs < 1 { maxProbs = 1 }
+						clickedIdx := (msg.X - 10) / 4
+						if clickedIdx >= 0 && clickedIdx < maxProbs {
+							startP := 0
+							if m.problemSel >= maxProbs {
+								startP = m.problemSel - maxProbs + 1
+							}
+							targetP := startP + clickedIdx
+							if targetP < len(m.problems) {
+								m.problemSel = targetP
+							}
+						}
+					}
+				}
 			}
+		case screenCustomTest:
+			return m.updateCustomTest(msg)
+		case screenTestEdit:
+			return m.updateTestEdit(msg)
+		case screenSnippetCreate:
+			return m.updateSnippetCreate(msg)
 		}
 
 	case tea.KeyMsg:
-		if m.screen == screenHelp {
-			// any key closes help
+		if m.screen == screenHelp || m.screen == screenMore {
 			m.screen = screenMain
 			return m, nil
 		}
@@ -225,6 +376,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.screen == screenCustomTest {
 			return m.updateCustomTest(msg)
+		}
+		if m.screen == screenSnippets {
+			return m.updateSnippets(msg)
+		}
+		if m.screen == screenTestEdit {
+			return m.updateTestEdit(msg)
+		}
+		if m.screen == screenSnippetCreate {
+			return m.updateSnippetCreate(msg)
 		}
 		return m.updateMain(msg)
 	}
@@ -239,14 +399,10 @@ func (m model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "up", "k":
-		if m.focusedRow > 0 {
-			m.focusedRow--
-		}
+		// Locked to problems row (0) for now
 
 	case "down", "j":
-		if m.focusedRow < 1 {
-			m.focusedRow++
-		}
+		// Locked to problems row (0) for now
 
 	case "left", "h":
 		if m.focusedRow == 0 && m.problemSel > 0 {
@@ -288,7 +444,7 @@ func (m model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "e":
 		if m.selSolution() != "" && !m.running {
 			m.customInput.SetWidth(m.width - 4)
-			m.customInput.SetHeight(m.height - 10)
+			m.customInput.SetHeight((m.height - 10) / 2)
 			m.customInput.Focus()
 			m.screen = screenCustomTest
 			return m, textarea.Blink
@@ -297,6 +453,58 @@ func (m model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "c":
 		m.outLines = nil
 		m.logOffset = 0
+
+	case "t":
+		if m.timerRunning {
+			m.timerRunning = false
+		} else {
+			m.screen = screenDialog
+			inp := mkInput("Timer (e.g. 120m, 2h30m) [Default: 2h]", 20)
+			inp.Focus()
+			m.dlg = dlgState{kind: dialogTimer, inputs: []textinput.Model{inp}}
+			return m, textinput.Blink
+		}
+
+	case "s":
+		if m.selSolution() != "" && !m.running {
+			m.screen = screenSnippets
+			m.snippetSel = 0
+		}
+
+	case "m":
+		if !m.running {
+			m.screen = screenMore
+		}
+
+	case "ctrl+p":
+		m.screen = screenDialog
+		m.apiKeyInput.SetValue("")
+		m.apiKeyInput.Focus()
+		m.dlg = dlgState{kind: dialogApiKey}
+		return m, textinput.Blink
+
+	case "ctrl+h":
+		m.hideFacts = !m.hideFacts
+		return m, nil
+
+	case "x":
+		if name := m.selSolution(); name != "" && !m.running {
+			inFiles, _ := filepath.Glob(filepath.Join(m.cwd, name+"-*.in"))
+			if len(inFiles) > 0 {
+				sort.Strings(inFiles)
+				m.testEditFiles = inFiles
+				m.testEditIdx = 0
+				content, _ := os.ReadFile(inFiles[0])
+				m.testEditInput.SetValue(string(content))
+				m.testEditInput.SetWidth(m.width - 4)
+				m.testEditInput.SetHeight(m.height - 10)
+				m.testEditInput.Focus()
+				m.screen = screenTestEdit
+				return m, textarea.Blink
+			} else {
+				m.outLines = append(m.outLines, outLine{"err", "No .in files to edit"})
+			}
+		}
 
 	case "?":
 		m.screen = screenHelp
@@ -309,31 +517,223 @@ func (m model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // ── Custom Test screen ────────────────────────────────────────────────────────
 
-func (m model) updateCustomTest(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
-		m.customInput.Blur()
-		m.screen = screenMain
-		return m, nil
-	case "ctrl+r":
-		inputText := m.customInput.Value()
-		name := m.selSolution()
-		m.customInput.Blur()
-		m.screen = screenMain
-		if name != "" && !m.running {
-			ch := make(chan outLine, 512)
-			m.outCh = ch
-			m.running = true
-			m.outLines = nil
-			m.logOffset = 0
-			return m, tea.Batch(launchCustomRun(name, inputText, ch), listenOutput(ch))
+func (m model) updateCustomTest(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.customInput.Blur()
+			m.screen = screenMain
+			return m, nil
+		case "ctrl+r":
+			inputText := m.customInput.Value()
+			name := m.selSolution()
+			if name != "" && !m.running {
+				ch := make(chan outLine, 512)
+				m.outCh = ch
+				m.running = true
+				m.outLines = nil
+				m.logOffset = 0
+				return m, tea.Batch(launchCustomRun(name, inputText, ch), listenOutput(ch))
+			}
+			return m, nil
+		case "ctrl+s":
+			return m.saveCustomTest(false), nil
+		case "ctrl+a":
+			return m.saveCustomTest(true), nil
 		}
-		return m, nil
-	default:
+	case tea.MouseMsg:
+		msg.Y -= 3
 		var cmd tea.Cmd
 		m.customInput, cmd = m.customInput.Update(msg)
 		return m, cmd
 	}
+	
+	// Default handler for textinput updates
+	var cmd tea.Cmd
+	m.customInput, cmd = m.customInput.Update(msg)
+	return m, cmd
+}
+
+func (m model) saveCustomTest(addAnother bool) model {
+	name := m.selSolution()
+	if name != "" {
+		inFiles, _ := filepath.Glob(filepath.Join(m.cwd, name+"-*.in"))
+		maxN := 0
+		for _, f := range inFiles {
+			base := filepath.Base(f)
+			base = strings.TrimPrefix(base, name+"-")
+			base = strings.TrimSuffix(base, ".in")
+			var n int
+			fmt.Sscanf(base, "%d", &n)
+			if n > maxN {
+				maxN = n
+			}
+		}
+		newNum := maxN + 1
+		inFile := filepath.Join(m.cwd, fmt.Sprintf("%s-%d.in", name, newNum))
+		outFile := filepath.Join(m.cwd, fmt.Sprintf("%s-%d.out", name, newNum))
+		os.WriteFile(inFile, []byte(m.customInput.Value()), 0644)
+		os.WriteFile(outFile, []byte(""), 0644)
+		m.outLines = append(m.outLines, outLine{"ok", fmt.Sprintf("Saved test case %s-%d.in", name, newNum)})
+		
+		if addAnother {
+			m.customInput.SetValue("")
+		} else {
+			m.customInput.Blur()
+			m.screen = screenMain
+		}
+	}
+	return m
+}
+
+// ── Snippets screen ───────────────────────────────────────────────────────────
+
+func (m model) updateSnippets(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "q":
+		m.screen = screenMain
+	case "n":
+		m.screen = screenSnippetCreate
+		m.snipNameInput.SetValue("")
+		m.snipCodeInput.SetValue("")
+		m.snipNameInput.Focus()
+		m.snipCodeInput.Blur()
+		m.snipCreateFocused = 0
+		return m, nil
+	case "up", "k":
+		if m.snippetSel > 0 {
+			m.snippetSel--
+		}
+	case "down", "j":
+		if m.snippetSel < len(snippets)-1 {
+			m.snippetSel++
+		}
+	case "enter":
+		name := m.selSolution()
+		if name != "" {
+			cppFile := filepath.Join(m.cwd, name+".cpp")
+			content, err := os.ReadFile(cppFile)
+			if err == nil {
+				lines := strings.Split(string(content), "\n")
+				insertIdx := 0
+				for i := len(lines) - 1; i >= 0; i-- {
+					if strings.HasPrefix(strings.TrimSpace(lines[i]), "#include") || strings.HasPrefix(strings.TrimSpace(lines[i]), "using namespace") {
+						insertIdx = i + 1
+						break
+					}
+				}
+				snippetCode := "\n// --- " + snippets[m.snippetSel].name + " ---\n" + snippets[m.snippetSel].code + "\n"
+				newLines := append(lines[:insertIdx], append(strings.Split(snippetCode, "\n"), lines[insertIdx:]...)...)
+				os.WriteFile(cppFile, []byte(strings.Join(newLines, "\n")), 0644)
+				m.outLines = append(m.outLines, outLine{"ok", fmt.Sprintf("Injected snippet: %s", snippets[m.snippetSel].name)})
+			}
+		}
+		m.screen = screenMain
+	}
+	return m, nil
+}
+
+func (m model) updateSnippetCreate(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.screen = screenSnippets
+			return m, nil
+		case "tab", "down":
+			m.snipCreateFocused = (m.snipCreateFocused + 1) % 2
+			if m.snipCreateFocused == 0 {
+				m.snipNameInput.Focus()
+				m.snipCodeInput.Blur()
+			} else {
+				m.snipNameInput.Blur()
+				m.snipCodeInput.Focus()
+			}
+		case "shift+tab", "up":
+			m.snipCreateFocused = (m.snipCreateFocused - 1 + 2) % 2
+			if m.snipCreateFocused == 0 {
+				m.snipNameInput.Focus()
+				m.snipCodeInput.Blur()
+			} else {
+				m.snipNameInput.Blur()
+				m.snipCodeInput.Focus()
+			}
+		case "ctrl+s":
+			name := strings.TrimSpace(m.snipNameInput.Value())
+			code := m.snipCodeInput.Value()
+			if name != "" && code != "" {
+				saveCustomSnippet(m.cwd, name, code)
+				m.screen = screenMain
+				m.outLines = append(m.outLines, outLine{"ok", fmt.Sprintf("Saved snippet: %s", name)})
+				return m, nil
+			}
+		default:
+			var cmd tea.Cmd
+			if m.snipCreateFocused == 0 {
+				m.snipNameInput, cmd = m.snipNameInput.Update(msg)
+			} else {
+				m.snipCodeInput, cmd = m.snipCodeInput.Update(msg)
+			}
+			return m, cmd
+		}
+	case tea.MouseMsg:
+		if msg.Y == 3 || msg.Y == 4 {
+			m.snipCreateFocused = 0
+			m.snipNameInput.Focus()
+			m.snipCodeInput.Blur()
+			var cmd tea.Cmd
+			m.snipNameInput, cmd = m.snipNameInput.Update(msg)
+			return m, cmd
+		} else if msg.Y >= 6 {
+			m.snipCreateFocused = 1
+			m.snipNameInput.Blur()
+			m.snipCodeInput.Focus()
+			msg.Y -= 6
+			var cmd tea.Cmd
+			m.snipCodeInput, cmd = m.snipCodeInput.Update(msg)
+			return m, cmd
+		}
+	}
+	return m, nil
+}
+
+// ── Test Edit screen ──────────────────────────────────────────────────────────
+
+func (m model) updateTestEdit(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			os.WriteFile(m.testEditFiles[m.testEditIdx], []byte(m.testEditInput.Value()), 0644)
+			m.testEditInput.Blur()
+			m.screen = screenMain
+			return m, nil
+		case "ctrl+s", "ctrl+w":
+			os.WriteFile(m.testEditFiles[m.testEditIdx], []byte(m.testEditInput.Value()), 0644)
+			m.outLines = append(m.outLines, outLine{"log", fmt.Sprintf("Saved %s", filepath.Base(m.testEditFiles[m.testEditIdx]))})
+		case "tab":
+			os.WriteFile(m.testEditFiles[m.testEditIdx], []byte(m.testEditInput.Value()), 0644)
+			m.testEditIdx = (m.testEditIdx + 1) % len(m.testEditFiles)
+			content, _ := os.ReadFile(m.testEditFiles[m.testEditIdx])
+			m.testEditInput.SetValue(string(content))
+		case "shift+tab":
+			os.WriteFile(m.testEditFiles[m.testEditIdx], []byte(m.testEditInput.Value()), 0644)
+			m.testEditIdx = (m.testEditIdx - 1 + len(m.testEditFiles)) % len(m.testEditFiles)
+			content, _ := os.ReadFile(m.testEditFiles[m.testEditIdx])
+			m.testEditInput.SetValue(string(content))
+		}
+	case tea.MouseMsg:
+		msg.Y -= 4
+		var cmd tea.Cmd
+		m.testEditInput, cmd = m.testEditInput.Update(msg)
+		return m, cmd
+	}
+	
+	// Default handler for textinput updates
+	var cmd tea.Cmd
+	m.testEditInput, cmd = m.testEditInput.Update(msg)
+	return m, cmd
 }
 
 // ── Dialog screen ─────────────────────────────────────────────────────────────
@@ -466,6 +866,50 @@ func (m model) updateDlg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		m.dlg = d
+		case dialogTimer:
+		switch msg.String() {
+		case "esc":
+			m.screen = screenMain
+			m.dlg = dlgState{}
+		case "enter":
+			val := strings.TrimSpace(d.inputs[0].Value())
+			if val == "" {
+				val = "2h"
+			}
+			dur, err := time.ParseDuration(val)
+			if err == nil {
+				m.timerDur = dur
+				m.timerEnd = time.Now().Add(dur)
+				m.timerRunning = true
+			}
+			m.screen = screenMain
+			m.dlg = dlgState{}
+			return m, tickCmd()
+		default:
+			var cmd tea.Cmd
+			d.inputs[0], cmd = d.inputs[0].Update(msg)
+			m.dlg = d
+			return m, cmd
+		}
+
+	case dialogApiKey:
+		switch msg.String() {
+		case "esc":
+			m.screen = screenMain
+			m.dlg = dlgState{}
+		case "enter":
+			key := strings.TrimSpace(m.apiKeyInput.Value())
+			saveApiKey(m.cwd, key)
+			m.screen = screenMain
+			m.dlg = dlgState{}
+			m.aiTip = "Fetching tip..."
+			m.aiTipLoading = true
+			return m, launchAITip()
+		default:
+			var cmd tea.Cmd
+			m.apiKeyInput, cmd = m.apiKeyInput.Update(msg)
+			return m, cmd
+		}
 	}
 
 	return m, nil

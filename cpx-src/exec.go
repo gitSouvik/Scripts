@@ -104,23 +104,68 @@ func launchRun(name string, ch chan outLine) tea.Cmd {
 				ch <- outLine{"fail", fmt.Sprintf("Test %s Failed (%dms)", testNum, elapsed.Milliseconds())}
 				failed++
 				
-				ch <- outLine{"log", "Output:"}
+				ch <- outLine{"log", "Diff (Actual vs Expected):"}
 				actualLines := strings.Split(actualOut, "\n")
 				expectedLines := strings.Split(expectedOut, "\n")
 				
-				diffFound := false
-				for i, aLine := range actualLines {
-					if !diffFound && (i >= len(expectedLines) || aLine != expectedLines[i]) {
-						diffFound = true
-						ch <- outLine{"output-err", aLine}
-					} else {
-						ch <- outLine{"output", aLine}
-					}
+				maxLines := len(actualLines)
+				if len(expectedLines) > maxLines {
+					maxLines = len(expectedLines)
 				}
 				
-				ch <- outLine{"log", "Expected:"}
-				for _, eLine := range expectedLines {
-					ch <- outLine{"expected", eLine}
+				for i := 0; i < maxLines; i++ {
+					aLine := ""
+					if i < len(actualLines) {
+						aLine = actualLines[i]
+					}
+					eLine := ""
+					if i < len(expectedLines) {
+						eLine = expectedLines[i]
+					}
+					
+					if aLine == eLine {
+						ch <- outLine{"output", aLine}
+					} else {
+						// Token diff
+						aTokens := strings.Fields(aLine)
+						eTokens := strings.Fields(eLine)
+						
+						maxTokens := len(aTokens)
+						if len(eTokens) > maxTokens {
+							maxTokens = len(eTokens)
+						}
+						
+						var aDiff, eDiff []string
+						for j := 0; j < maxTokens; j++ {
+							aTok := ""
+							if j < len(aTokens) {
+								aTok = aTokens[j]
+							}
+							eTok := ""
+							if j < len(eTokens) {
+								eTok = eTokens[j]
+							}
+							
+							if aTok == eTok {
+								aDiff = append(aDiff, aTok)
+								eDiff = append(eDiff, eTok)
+							} else {
+								if aTok != "" {
+									aDiff = append(aDiff, "\033[1;31m"+aTok+"\033[0m") // red
+								}
+								if eTok != "" {
+									eDiff = append(eDiff, "\033[1;32m"+eTok+"\033[0m") // green
+								}
+							}
+						}
+						
+						if aLine != "" {
+							ch <- outLine{"diff-act", "Act: " + strings.Join(aDiff, " ")}
+						}
+						if eLine != "" {
+							ch <- outLine{"diff-exp", "Exp: " + strings.Join(eDiff, " ")}
+						}
+					}
 				}
 			}
 		}
