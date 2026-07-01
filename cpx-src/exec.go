@@ -315,12 +315,22 @@ func launchGen(name, seed string, ch chan outLine) tea.Cmd {
 
 // ── Custom Test Run ───────────────────────────────────────────────────────────
 
-func launchCustomRun(name string, input string, ch chan outLine) tea.Cmd {
+func launchCompileOnly(name string, ch chan outLine) tea.Cmd {
+	return func() tea.Msg {
+		defer close(ch)
+		success := compileFile(name, "custom", ch)
+		return compileInteractiveReadyMsg{success: success, name: name}
+	}
+}
+
+func launchCustomRun(name string, input string, skipCompile bool, ch chan outLine) tea.Cmd {
 	return func() tea.Msg {
 		defer close(ch)
 
-		if !compileFile(name, "custom", ch) {
-			return nil
+		if !skipCompile {
+			if !compileFile(name, "custom", ch) {
+				return nil
+			}
 		}
 
 		inputData := []byte(input)

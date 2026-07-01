@@ -98,9 +98,9 @@ func (m model) View() string {
 	}
 
 	if m.running {
-		b.WriteString("\033[2;37m[?] help   [r] run   [x] tests   [e] +tests   [s] snip   [m] more   [c] clear   [q] quit\033[0m\n")
+		b.WriteString("\033[2;37m[?] help   [r] run   [R] +run   [x] tests   [X] +tests   [m] more   [c] clear\033[0m\n")
 	} else {
-		b.WriteString("\033[1;32m[?]\033[0m help   \033[1;32m[r]\033[0m run   \033[1;32m[x]\033[0m tests   \033[1;32m[e]\033[0m +tests   \033[1;32m[s]\033[0m snip   \033[1;32m[m]\033[0m more   \033[1;32m[c]\033[0m clear   \033[1;32m[q]\033[0m quit\n")
+		b.WriteString("\033[1;32m[?]\033[0m help   \033[1;32m[r]\033[0m run   \033[1;32m[R]\033[0m +run   \033[1;32m[x]\033[0m tests   \033[1;32m[X]\033[0m +tests   \033[1;32m[m]\033[0m more   \033[1;32m[c]\033[0m clear\n")
 	}
 	lineWidth := m.width - 4
 	if lineWidth < 0 {
@@ -144,51 +144,44 @@ func (m model) View() string {
 
 	// BODY: Help Screen
 	if m.screen == screenHelp {
-		lineW := m.width - 4
-		if lineW < 0 {
-			lineW = 0
-		}
-		sep := fmt.Sprintf("  \033[2;37m%s\033[0m\n", strings.Repeat("─", lineW))
-		b.WriteString("\n  \033[1;36m─── Help\033[0m \033[2;37m— press any key to close\033[0m\n\n")
-		b.WriteString(sep)
-		// Navigation
-		b.WriteString("  \033[1;37mNavigation\033[0m\n")
-		b.WriteString("  \033[1;32m←  /  →\033[0m    move between problems\n")
-		b.WriteString("  \033[1;32m↑  /  ↓\033[0m    switch focus between prob and cmds rows\n")
-		b.WriteString("  \033[1;32mh / l\033[0m      vim-style left / right between problems\n")
-		b.WriteString("  \033[1;32mj / k\033[0m      vim-style down / up between rows\n")
-		b.WriteString("  \033[1;32mscroll\033[0m     scroll the output log up / down\n")
-		b.WriteString("\n")
-		b.WriteString(sep)
-		// Commands
-		b.WriteString("  \033[1;37mCommands\033[0m\n")
-		b.WriteString("  \033[1;32mr\033[0m          compile & run against all .in/.out test cases\n")
-		b.WriteString("  \033[1;32mx\033[0m          open interactive test case editor (tab between .in files)\n")
-		b.WriteString("  \033[1;32me\033[0m          open custom test editor — paste input, ctrl+r to run\n")
-		b.WriteString("  \033[1;32ms\033[0m          open code snippet injection menu\n")
-		b.WriteString("  \033[1;32mt\033[0m          start or stop the contest timer\n")
-		b.WriteString("  \033[1;32md\033[0m          debug run — pick a specific test case number\n")
-		b.WriteString("                 (enter 0 to run all without comparison)\n")
-		b.WriteString("  \033[1;32mc\033[0m          clear the output log\n")
-		b.WriteString("  \033[1;32mn\033[0m          new file dialog — create a single file or a range\n")
-		b.WriteString("  \033[1;31mg\033[0m          gen — stress test generator (requires gen.cpp)\n")
-		b.WriteString("  \033[1;32mq  /  ctrl+c\033[0m  quit\n")
-		b.WriteString("  \033[1;32mctrl+h\033[0m     toggle facts visibility\n")
-		b.WriteString("\n")
-		b.WriteString(sep)
-		// Fetch
-		b.WriteString("  \033[1;37mFetch (Competitive Companion)\033[0m\n")
-		b.WriteString("  cpx auto-listens on port \033[1;36m54321\033[0m.\n")
-		b.WriteString("  Click \033[1;36m+\033[0m in your browser extension to push problems here.\n")
-		b.WriteString("  Files created: \033[2;37mA.cpp, A-1.in, A-1.out, …\033[0m\n")
-		b.WriteString("\n")
-		b.WriteString(sep)
-		// Debug macros
-		b.WriteString("  \033[1;37mDebug Macros\033[0m\n")
-		b.WriteString("  Include \033[1;36mdebug.h\033[0m or \033[1;36mdebug++.h\033[0m and use \033[1;36mdbg(var)\033[0m to print to stderr.\n")
-		b.WriteString("  The macro is \033[2;37msilently disabled\033[0m on the judge (no -DWOOF_ flag).\n")
+		b.WriteString("\n  \033[1;36m╭── CPX Documentation ───────────────────────────────────────────\033[0m\n")
+		b.WriteString("  \033[1;36m│\033[0m  \033[2;37mPress any key to close this view\033[0m\n")
+		b.WriteString("  \033[1;36m│\033[0m\n")
+		
+		// 1. Navigation & UI
+		b.WriteString("  \033[1;36m│\033[0m  \033[1;37m✦ Navigation & UI\033[0m\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32m←  /  →\033[0m     Move left/right between problems\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mh  /  l\033[0m     (Vim-style) Move left/right between problems\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32m↑  /  ↓\033[0m     Switch focus between problem row and commands row\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mscroll\033[0m      Scroll the output log up and down\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mctrl+h\033[0m      Toggle visibility of AI facts\n")
+		b.WriteString("  \033[1;36m│\033[0m\n")
+		
+		// 2. Core Execution
+		b.WriteString("  \033[1;36m│\033[0m  \033[1;37m✦ Execution Commands\033[0m\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mr\033[0m           Compile and run against all standard `.in` test cases\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mR\033[0m           Interactive Run: Compiles, then awaits live custom input\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32md\033[0m           Debug Run: Select a specific test case number to run\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mc\033[0m           Clear the output console log\n")
+		b.WriteString("  \033[1;36m│\033[0m\n")
+		
+		// 3. Testing & Generators
+		b.WriteString("  \033[1;36m│\033[0m  \033[1;37m✦ Test Management\033[0m\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mx\033[0m           Edit standard tests — view and modify `.in` files\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mX\033[0m           Add Custom Test — quick input editor for isolated testing\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;31mg\033[0m           Gen — Stress test generator (requires a `gen.cpp` file)\n")
+		b.WriteString("  \033[1;36m│\033[0m\n")
+		
+		// 4. Tools & Features
+		b.WriteString("  \033[1;36m│\033[0m  \033[1;37m✦ Extended Features\033[0m\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mt\033[0m           Timer — set a countdown timer for virtual contests\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32ms\033[0m           Snippets — open the code snippet injection menu\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mn\033[0m           New — dialog to generate a new problem file or range\n")
+		b.WriteString("  \033[1;36m│\033[0m    \033[1;32mq\033[0m           Quit CPX environment\n")
+		b.WriteString("  \033[1;36m╰────────────────────────────────────────────────────────────────\033[0m\n")
 		return b.String()
 	}
+
 	// BODY: Test Case Editor
 	if m.screen == screenTestEdit {
 		fname := ""
@@ -203,22 +196,30 @@ func (m model) View() string {
 
 	// BODY: More Guide
 	if m.screen == screenMore {
-		lineW := m.width - 4
-		if lineW < 0 {
-			lineW = 0
-		}
-		sep := fmt.Sprintf("  \033[2;37m%s\033[0m\n", strings.Repeat("─", lineW))
-		b.WriteString("\n  \033[1;36m─── More Shortcuts & Guide\033[0m \033[2;37m— press any key to close\033[0m\n\n")
-		b.WriteString(sep)
-		b.WriteString("  \033[1;37mHidden Options\033[0m\n")
-		b.WriteString("  \033[1;32mt\033[0m          timer — set contest countdown timer\n")
-		b.WriteString("  \033[1;32mn\033[0m          new — create a single problem file or range\n")
-		b.WriteString("  \033[1;32mctrl+p\033[0m     set API key — paste your free Gemini API key\n")
-		b.WriteString("\n")
-		b.WriteString(sep)
-		b.WriteString("  \033[1;37mFacts\033[0m\n")
-		b.WriteString("  A new programming fact is fetched every 5 minutes dynamically.\n")
-		b.WriteString("\n")
+		b.WriteString("\n  \033[1;35m╭── Advanced Guide & Setup ──────────────────────────────────────\033[0m\n")
+		b.WriteString("  \033[1;35m│\033[0m  \033[2;37mPress any key to close this view\033[0m\n")
+		b.WriteString("  \033[1;35m│\033[0m\n")
+		
+		b.WriteString("  \033[1;35m│\033[0m  \033[1;37m✦ Competitive Companion Fetching\033[0m\n")
+		b.WriteString("  \033[1;35m│\033[0m    CPX runs a background server listening on port \033[1;32m54321\033[0m.\n")
+		b.WriteString("  \033[1;35m│\033[0m    Click the \033[1;32m+\033[0m icon in your browser extension to push problems.\n")
+		b.WriteString("  \033[1;35m│\033[0m    Files are auto-generated: \033[2;37mA.cpp, A-1.in, A-1.out\033[0m\n")
+		b.WriteString("  \033[1;35m│\033[0m\n")
+		
+		b.WriteString("  \033[1;35m│\033[0m  \033[1;37m✦ Debug Macros & Compilation\033[0m\n")
+		b.WriteString("  \033[1;35m│\033[0m    Include \033[1;32mdebug.h\033[0m or \033[1;32mdebug++.h\033[0m in your files.\n")
+		b.WriteString("  \033[1;35m│\033[0m    Use \033[1;36mdbg(var)\033[0m to print directly to the stderr console log.\n")
+		b.WriteString("  \033[1;35m│\033[0m    Macros are seamlessly disabled when pushed to the judge.\n")
+		b.WriteString("  \033[1;35m│\033[0m\n")
+		
+		b.WriteString("  \033[1;35m│\033[0m  \033[1;37m✦ Precompiled Headers (PCH)\033[0m\n")
+		b.WriteString("  \033[1;35m│\033[0m    CPX takes advantage of \033[2;37mstdc++.h.gch\033[0m for ultra-fast compilation.\n")
+		b.WriteString("  \033[1;35m│\033[0m    Compilation flags: \033[2;37m-O2 -std=c++20 -DWOOF_\033[0m\n")
+		b.WriteString("  \033[1;35m│\033[0m\n")
+		
+		b.WriteString("  \033[1;35m│\033[0m  \033[1;37m✦ Custom Configuration\033[0m\n")
+		b.WriteString("  \033[1;35m│\033[0m    \033[1;32mctrl+p\033[0m      Set your free Gemini API key for smart facts.\n")
+		b.WriteString("  \033[1;35m╰────────────────────────────────────────────────────────────────\033[0m\n")
 		return b.String()
 	}
 
@@ -315,10 +316,17 @@ func (m model) View() string {
 		b.WriteString("\n")
 	} else {
 		availLines := m.height - 10
+		if m.inlineInputActive {
+			availLines -= (m.customInput.Height() + 2)
+		}
 		if availLines < 5 {
 			availLines = 5
 		}
 		b.WriteString(m.renderLogs(availLines))
+		if m.inlineInputActive {
+			b.WriteString("\n  \033[1;36mType custom input:\033[0m \033[2;37m(enter or ctrl+r to run, esc to cancel)\033[0m\n")
+			b.WriteString(m.customInput.View())
+		}
 	}
 
 	return b.String()

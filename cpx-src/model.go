@@ -57,6 +57,10 @@ type opDoneMsg   struct{}
 type fetchEvtMsg string
 type refreshMsg  struct{}
 type timerTickMsg struct{}
+type compileInteractiveReadyMsg struct {
+	success bool
+	name    string
+}
 
 // ── File entry ────────────────────────────────────────────────────────────────
 
@@ -158,6 +162,7 @@ type model struct {
 	snipCreateFocused int // 0: name, 1: code
 
 	hideFacts bool
+	inlineInputActive bool
 }
 
 func newModel() model {
@@ -329,6 +334,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case refreshMsg:
 		m.problems = scanProblems(m.cwd)
 
+	case compileInteractiveReadyMsg:
+		m.running = false
+		if msg.success {
+			m.inlineInputActive = true
+			m.customInput.SetWidth(m.width - 4)
+			m.customInput.SetHeight(6)
+			m.customInput.SetValue("")
+			m.customInput.Focus()
+			return m, textarea.Blink
+		}
+		// If failed, we leave m.running = false so the user can see the error in the log.
+		return m, nil
+
 	case tea.MouseMsg:
 		switch m.screen {
 		case screenMain:
@@ -394,6 +412,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 func (m model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.inlineInputActive {
+		switch msg.String() {
+		case "esc", "ctrl+c":
+			m.inlineInputActive = false
+			return m, nil
+		case "ctrl+r", "enter":
+			input := m.customInput.Value()
+			m.inlineInputActive = false
+			name := m.selSolution()
+			if name != "" && !m.running {
+				ch := make(chan outLine, 512)
+				m.outCh = ch
+				m.running = true
+				// DO NOT clear m.outLines here; preserve the compilation log.
+				// m.logOffset can stay as is, it auto-scrolls.
+				return m, tea.Batch(launchCustomRun(name, input, true, ch), listenOutput(ch))
+			}
+			return m, nil
+		default:
+			var cmd tea.Cmd
+			m.customInput, cmd = m.customInput.Update(msg)
+			return m, cmd
+		}
+	}
+
 	switch msg.String() {
 	case "q", "ctrl+c":
 		return m, tea.Quit
@@ -424,6 +467,16 @@ func (m model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(launchRun(name, ch), listenOutput(ch))
 		}
 
+	case "R":
+		if name := m.selSolution(); name != "" && !m.running {
+			ch := make(chan outLine, 512)
+			m.outCh = ch
+			m.running = true
+			m.outLines = nil
+			m.logOffset = 0
+			return m, tea.Batch(launchCompileOnly(name, ch), listenOutput(ch))
+		}
+
 	case "d":
 		if m.selSolution() != "" && !m.running {
 			inp := mkInput("blank=keyboard · 0=all · N=case N", 8)
@@ -441,7 +494,7 @@ func (m model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.screen = screenDialog
 		m.dlg = dlgState{kind: dialogNew, optSel: 0}
 
-	case "e":
+	case "X":
 		if m.selSolution() != "" && !m.running {
 			m.customInput.SetWidth(m.width - 4)
 			m.customInput.SetHeight((m.height - 10) / 2)
@@ -534,7 +587,7 @@ func (m model) updateCustomTest(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.running = true
 				m.outLines = nil
 				m.logOffset = 0
-				return m, tea.Batch(launchCustomRun(name, inputText, ch), listenOutput(ch))
+				return m, tea.Batch(launchCustomRun(name, inputText, false, ch), listenOutput(ch))
 			}
 			return m, nil
 		case "ctrl+s":
