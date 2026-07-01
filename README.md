@@ -70,12 +70,11 @@ cpx
 ## UI Layout
 
 ```
-  cpx — Competitive Programming Tools
-  /path/to/contest
+                        00:00:00        cpx · code · test · debug          ← Timer (extreme left) & Title (centered)
+  prob :  [A]  B   C   D                                                   ← Problem row
+  cmds :  [?] help   [r] run   [x] tests   [e] +tests   [s] snip   [m] more   [c] clear   [q] quit
 
-│ [A]  B   C   D                          ← Problem row (focused)
-  Type :  [r] run  [e] custom  [d] debug  [c] clear  [n] new  [g] gen  [q] quit
-
+  Facts! There are 10 types of people in the world...                       ← Dynamic Gemini facts
   ─────────────────────────────────────────────────────────────────────
 
   [run] compiling A.cpp...
@@ -90,8 +89,6 @@ cpx
   │ 4
 ```
 
-The `│` bar on the left shows which row is focused. Use `↑`/`↓` to switch rows.
-
 ---
 
 ## Keyboard Shortcuts
@@ -99,41 +96,57 @@ The `│` bar on the left shows which row is focused. Use `↑`/`↓` to switch 
 ### Navigation (always available)
 | Key | Action |
 |---|---|
-| `↑` / `↓` | Switch focus between Problem row and Shortcut row |
-| `←` / `→` | Move between problems (when Problem row is focused) |
+| `←` / `→` | Move between problems |
+| Mouse Click | Click on problem letter to jump focus directly to it |
 
 ### Commands (Shortcut row focused or anywhere on main screen)
 | Key | Action |
 |---|---|
-| `r` | Run selected problem against all `.in`/`.out` test cases |
-| `e` | Open custom test editor (paste/type, then `ctrl+r` to run) |
-| `d` | Debug run — opens dialog to pick a specific test case number |
+| `r` | Run selected problem against all `.in`/`.out` test cases (includes side-by-side token diff) |
+| `x` | Open interactive test cases editor |
+| `e` | Open custom test editor (`+tests`) — split-pane (input on top, logs on bottom), `ctrl+r` to run, `ctrl+s`/`ctrl+a` to save |
+| `s` | Open code snippet injection menu (press `n` here to open Snippet Creator) |
+| `m` | Open "More Options Guide" for hidden options |
 | `c` | Clear output log |
-| `n` | New file dialog — create a single file or a range (`a`→`e`) |
 | `q` | Quit |
+
+### Hidden Options (Shown in `[m] more` guide)
+| Key | Action |
+|---|---|
+| `t` | Start or stop the contest countdown timer |
+| `n` | New file dialog — create a single file or a range (`a`→`e`) |
+| `ctrl+p` | Open Gemini API key input dialog |
+| `ctrl+h` | Toggle facts visibility |
 
 ---
 
 ## Workflow
 
 ### 1. Fetch a Problem
-Start `cpx`. The fetch server is already running on port `54321`. Click the **+** icon in your Competitive Companion browser extension and the problem files are created silently and appear in the problem row instantly.
+Start `cpx`. The fetch server is already running on port `54321`. Click the **+** icon in your Competitive Companion browser extension. The problem files are created silently and appear in the problem row instantly.
 
 Files created:
 - `A.cpp` — pre-filled from `template.cpp`
 - `A-1.in`, `A-1.out`, `A-2.in`, `A-2.out`, … — all sample test cases
 
-### 2. Write Your Solution
-Open `A.cpp` in your editor and write your solution.
+### 2. Write Your Solution & Inject Snippets
+Open `A.cpp` in your editor and write your solution. 
+- Need a boilerplate algorithm? Press `s` in `cpx` to open snippets, select one, and hit `enter` to inject it.
+- Want to create a new snippet? Press `s` -> `n` to open the **Snippet Creator**, type the name, paste the code, and hit `ctrl+s`.
 
 ### 3. Test It
-Press `r` in cpx. Your solution is compiled and run against every sample test. Passing tests show green `✔`, failing tests show red `✘` with the output and expected output side by side.
+Press `r` in `cpx`. Your solution is compiled and run against every sample test. Passing tests show green `✔`, failing tests show red `✘` with output and expected output. A token-level **Smart Diff** highlights exact mismatched tokens in red.
 
-### 4. Custom Tests
-Press `e` to open the custom test editor. Paste or type your own input. Press `ctrl+r` to run it. Press `esc` to cancel.
+### 4. Custom Tests (`+tests`)
+Press `e` to open the split-pane custom test editor. Type or paste your input on the top half. Press `ctrl+r` to run it—the output appears immediately on the bottom half without closing the editor. You can tweak and rerun instantly. Press `ctrl+s` to save it as a permanent test case, or `esc` to close.
 
 ### 5. Debug Run
-Press `d`, then enter a test case number (`1`, `2`, etc.) or `0` to run all test cases without comparison. Useful for inspecting debug output from `dbg()`.
+Press `d` to select a test case number, or `0` to run all test cases without comparing to expected output. Useful for viewing debug statements.
+
+### 6. Contest Timer & Facts
+- Start a contest countdown timer by pressing `t` (from the `m` menu) and setting a duration (e.g. `2h` or `120m`).
+- A new programming fact is fetched every 5 minutes from Gemini. Press `ctrl+h` to hide/show the facts bar.
+
 
 ---
 
