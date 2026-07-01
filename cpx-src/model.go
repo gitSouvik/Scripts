@@ -21,6 +21,7 @@ const (
 	screenMain       screen = iota
 	screenDialog
 	screenCustomTest
+	screenHelp
 )
 
 type dialogKind int
@@ -203,16 +204,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseMsg:
 		if m.screen == screenMain {
-			if msg.Type == tea.MouseWheelUp {
+			switch msg.Type {
+			case tea.MouseWheelUp:
 				if m.logOffset > 0 {
 					m.logOffset--
 				}
-			} else if msg.Type == tea.MouseWheelDown {
+			case tea.MouseWheelDown:
 				m.logOffset++
 			}
 		}
 
 	case tea.KeyMsg:
+		if m.screen == screenHelp {
+			// any key closes help
+			m.screen = screenMain
+			return m, nil
+		}
 		if m.screen == screenDialog {
 			return m.updateDlg(msg)
 		}
@@ -290,6 +297,9 @@ func (m model) updateMain(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "c":
 		m.outLines = nil
 		m.logOffset = 0
+
+	case "?":
+		m.screen = screenHelp
 
 	case "ctrl+r":
 		m.problems = scanProblems(m.cwd)
